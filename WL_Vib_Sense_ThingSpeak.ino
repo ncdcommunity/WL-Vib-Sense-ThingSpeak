@@ -19,9 +19,9 @@ char mqttUserName[] = "MQTTvbshightime";
 char mqttPass[] = "VWFUWQUOI9WJXS0L";
 
 //--------- ThingSpeak Channel parameters------------//
-const char writeAPIKey[] = "8A5PMTM3BWUXTOOO";
-static long channelID = 726850;
-const char readAPIKey[] = "YUFI9SY471YAR7UC";
+const char writeAPIKey[] = "4DBY0AMEAOERUWL7";
+static long channelID = 728991;
+const char readAPIKey[] = "PV8TTYNRTZB1X9SB";
 
 //*************WiFi Credentials*****************//
 const char* WiFiSSID = "Dcube_web";
@@ -31,9 +31,17 @@ WiFiClient wifiClient;
  
 
 //--------- Temp parameters------------//
-int16_t Xrms; 
-int16_t Yrms; 
-float tempC;
+ static int16_t rms_x;  
+ static int16_t rms_y;  
+ static int16_t rms_z; 
+ static int16_t max_x; 
+ static int16_t max_y; 
+ static int16_t max_z; 
+ static int16_t min_x; 
+ static int16_t min_y; 
+ static int16_t min_z;
+ static float cTemp; 
+
 
 //*********ZigBee Frame**************/
 uint8_t data[54];
@@ -85,19 +93,19 @@ void loop() {
       {
   if(data[22]==0x08)  //////// make sure the sensor type is correct
   {
-  int16_t rms_x = ((uint16_t)(((data[24])<<16) + ((data[25])<<8) + (data[26]))/100);
-  int16_t rms_y = ((uint16_t)(((data[27])<<16) + ((data[28])<<8) + (data[29]))/100);
-  int16_t rms_z = ((uint16_t)(((data[30])<<16) + ((data[31])<<8) + (data[32]))/100);
-  int16_t max_x = ((uint16_t)(((data[33])<<16) + ((data[34])<<8) + (data[35]))/100);
-  int16_t max_y = ((uint16_t)(((data[36])<<16) + ((data[37])<<8) + (data[38]))/100);
-  int16_t max_z = ((uint16_t)(((data[39])<<16) + ((data[40])<<8) + (data[41]))/100);
+   rms_x = ((uint16_t)(((data[24])<<16) + ((data[25])<<8) + (data[26]))/100);
+  rms_y = ((uint16_t)(((data[27])<<16) + ((data[28])<<8) + (data[29]))/100);
+  rms_z = ((uint16_t)(((data[30])<<16) + ((data[31])<<8) + (data[32]))/100);
+  max_x = ((uint16_t)(((data[33])<<16) + ((data[34])<<8) + (data[35]))/100);
+  max_y = ((uint16_t)(((data[36])<<16) + ((data[37])<<8) + (data[38]))/100);
+  max_z = ((uint16_t)(((data[39])<<16) + ((data[40])<<8) + (data[41]))/100);
 
-  int16_t min_x = ((uint16_t)(((data[42])<<16) + ((data[43])<<8) + (data[44]))/100);
-  int16_t min_y = ((uint16_t)(((data[45])<<16) + ((data[46])<<8) + (data[47]))/100);
-  int16_t min_z = ((uint16_t)(((data[48])<<16) + ((data[49])<<8) + (data[50]))/100);
+  min_x = ((uint16_t)(((data[42])<<16) + ((data[43])<<8) + (data[44]))/100);
+  min_y = ((uint16_t)(((data[45])<<16) + ((data[46])<<8) + (data[47]))/100);
+  min_z = ((uint16_t)(((data[48])<<16) + ((data[49])<<8) + (data[50]))/100);
 
   
-  float cTemp = ((((data[51]) * 256) + data[52]));
+  cTemp = ((((data[51]) * 256) + data[52]));
   float battery = ((data[18] * 256) + data[19]);
   float voltage = 0.00322 * battery;
   Serial.print("Sensor Number  ");
@@ -152,7 +160,7 @@ else
 }
 }
   } 
-    if(tick >= 30)   // publish to topic every 5seconds
+    if(tick >= 60)   // publish to topic every 5seconds
     {
         tick=0;
   Serial.println("taskMQTTStarted");
@@ -167,24 +175,30 @@ else
        topicString.toCharArray(topicBuffer,topicLength+1);
        Serial.println(topicBuffer);
 
-    //   char messagePayload[MESSAGE_MAX_LEN];
-//       snprintf(messagePayload,MESSAGE_MAX_LEN, messageData,Xrms,Yrms,tempC);
-  //     Serial.println(messagePayload);
-       String dataString = String("field1="+ Xrms.c_str() + "&field2=" + Yrms.c_str() + "&field3=" + tempC.c_str());
+   
+       String strx(rms_x,DEC);
+       String stry(rms_y,DEC);
+       String dataString = String("field1="+ strx + "&field2=" + stry + "&field3=" + String(cTemp,DEC));  
+       //String dataString = String("field1="+String(cTemp,DEC));         
+       Serial.println(strx);
+       Serial.println(stry);
+       Serial.println(dataString);
+       
+       
        int dataLength = dataString.length()+1;
        byte dataBuffer[dataLength];
        dataString.getBytes(dataBuffer,dataLength);
-       mqttCli.beginPublish(topicBuffer,MESSAGE_MAX_LEN,false);
+       mqttCli.beginPublish(topicBuffer,dataLength,false);
 
        Serial.println(mqttCli.write(dataBuffer,dataLength) ? "published" : "published failed");
-      // Serial.println(mqttCli.write(messagePayload,MESSAGE_MAX_LEN) ? "published" : "published failed");
+      
+      Serial.println(mqttCli.endPublish()? "published" : "published failed");
 
-       mqttCli.endPublish();
-       
-       mqttCli.loop();  
+//the mqtt messages should be sent with some delay or the messages won't get published here we are sending messages after 60 seconds
   }
     vTaskDelay(1000 / portTICK_RATE_MS); 
     tick++; 
+    mqttCli.loop();  
 }
 
     
@@ -192,7 +206,7 @@ else
 void reconnectMQTT(){
    Serial.println("setting up mqtt");
    while(!mqttCli.connected()){
-     if(mqttCli.connect("ESP8266Client123456789")==true){
+     if(mqttCli.connect("ESP8266Client123456789",mqttUserName,mqttPass)==true){
         Serial.println("connected");
         String subTopic = String("channels/"+ String(channelID) + "/subscribe/json/" + String(readAPIKey));
         int subTopicLength = subTopic.length()+1;
@@ -232,4 +246,4 @@ void reconnectMQTT(){
         }
         counter++;  
   }
-  }
+}
