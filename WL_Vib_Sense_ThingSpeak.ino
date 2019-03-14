@@ -15,13 +15,13 @@
 
 //--------- ThingSpeak MQTT parameters------------//
 const char* mqtt_server = "mqtt.thingspeak.com";
-char mqttUserName[] = "MQTTvbshightime";
-char mqttPass[] = "VWFUWQUOI9WJXS0L";
+char mqttUserName[] = "ANY random username";
+char mqttPass[] = "ThingSpeakMQTT API Key";
 
 //--------- ThingSpeak Channel parameters------------//
-const char writeAPIKey[] = "4DBY0AMEAOERUWL7";
-static long channelID = 728991;
-const char readAPIKey[] = "PV8TTYNRTZB1X9SB";
+const char writeAPIKey[] = "ThingSpeak Write API Key"
+static long channelID = ThingSpeak Channel ID
+const char readAPIKey[] = "ThingSpeak Read API Key"
 
 //*************WiFi Credentials*****************//
 const char* WiFiSSID = "Dcube_web";
